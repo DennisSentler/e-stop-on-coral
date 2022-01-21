@@ -131,7 +131,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--tflite_path',
         type=str,
-        default='Pretrained_models/DS_CNN/DS_CNN_L/ds_cnn_l_quantized.tflite',
+        default='models/ds_cnn_q_2d.tflite',
         help='Path to TFLite file to use for testing.')
     parser.add_argument(
         '--silence_percentage',
