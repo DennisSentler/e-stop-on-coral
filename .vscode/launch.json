@@ -1,0 +1,17 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Test tflite on TPU",
+            "type": "python",
+            "request": "launch",
+            "program": "test_tflite_tpu.py",
+            "console": "integratedTerminal",
+            "args": ["--testdata_path", "testdata_as_mfcc", 
+                     "--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_q_2d_edgetpu.tflite"]
+        }
+    ]
+}

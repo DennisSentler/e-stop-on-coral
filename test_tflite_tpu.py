@@ -12,17 +12,35 @@
 # limitations under the License.
 """Functions to run inference and test keyword spotting models in tflite format."""
 
-#%%
 import argparse
 import tflite_runtime.interpreter as tflite
-#%%
 import numpy as np
-#from test import calculate_accuracy
 import sklearn.metrics
+import glob
+import re
 
+#%%
+# generator function for collecting data set from file system
+def load_testdata_mfcc(path):
+    files = glob.glob(path + "/label_*_nr_*.npy")
+    regex = re.compile("label_([\d]+)_nr")
+    test_data = []
+    for file in files:
+        # read label number from filename
+        label = int(regex.search(file).group(1))
+        test_data += [(np.load(file), label)]
+    return test_data
 
+def load_interpreter(tflite_path):
+    interpreter = tflite.Interpreter(
+                tflite_path, 
+                experimental_delegates=[tflite.load_delegate('libedgetpu.so.1')]
+        )
+    interpreter.allocate_tensors()
+    return interpreter
 
-def tflite_test(wanted_words, tflite_path):
+#%%
+def tflite_test(tflite_path, testdata_path):
     """Calculate accuracy and confusion matrices on the test set.
 
     A TFLite model used for doing testing.
@@ -30,36 +48,38 @@ def tflite_test(wanted_words, tflite_path):
     Args:
         tflite_path: Path to TFLite file to use for inference.
     """
-    #test_data = audio_processor.get_data(audio_processor.Modes.TESTING).batch(1)
-    expected_indices = np.concatenate([y for x, y in test_data])
+    interpreter = load_interpreter(tflite_path)
+    test_data = load_testdata_mfcc(testdata_path)
+
+    expected_indices = [y for x, y in test_data]
     predicted_indices = []
 
     print("Running testing on test set...")
+    mfcc_counter = 0
     for mfcc, label in test_data:
-        prediction = tflite_inference(mfcc, tflite_path)
-        predicted_indices.append(np.squeeze(tf.argmax(prediction, axis=1)))
+        prediction = tflite_inference(mfcc, interpreter)
+        predicted_indices.append(np.argmax(prediction))
+        print("Inference Nr. %d" % mfcc_counter)
+        mfcc_counter += 1
 
-    #test_accuracy = calculate_accuracy(predicted_indices, expected_indices)
-    #confusion_matrix = tf.math.confusion_matrix(expected_indices, predicted_indices,
-    #                                            num_classes=wanted_words.size+2)
+    test_accuracy = sklearn.metrics.accuracy_score(predicted_indices, expected_indices)
+    confusion_matrix = sklearn.metrics.confusion_matrix(expected_indices, predicted_indices)
 
-    print(confusion_matrix.numpy())
-    #print(f'Test accuracy = {test_accuracy * 100:.2f}%'
-    #      f'(N={audio_processor.set_size(audio_processor.Modes.TESTING)})')
+    print(confusion_matrix)
+    print(f'Test accuracy = {test_accuracy * 100:.2f}%'
+          f'(N={mfcc_counter})')
 
-
-def tflite_inference(input_data, tflite_path):
+#%%
+def tflite_inference(input_data, interpreter):
     """Call forwards pass of TFLite file and returns the result.
 
     Args:
         input_data: Input data to use on forward pass.
-        tflite_path: Path to TFLite file to run.
+        interpreter: Intepreter from loaded tflite model.
 
     Returns:
         Output from inference.
     """
-    interpreter = tflite.Interpreter(model_path=tflite_path)
-    interpreter.allocate_tensors()
 
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
@@ -83,7 +103,7 @@ def tflite_inference(input_data, tflite_path):
         output_scale, output_zero_point = 1, 0
 
 
-    interpreter.set_tensor(input_details[0]['index'], tf.cast(input_data, input_dtype))
+    interpreter.set_tensor(input_details[0]['index'], input_data.astype(input_dtype))
     interpreter.invoke()
 
     output_data = interpreter.get_tensor(output_details[0]['index'])
@@ -92,79 +112,27 @@ def tflite_inference(input_data, tflite_path):
 
     return output_data
 
-
+#%%
 def main():
-    tflite_test(FLAGS.wanted_words, FLAGS.tflite_path)
+    tflite_test(FLAGS.tflite_path, FLAGS.testdata_path)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--data_url',
+        '--testdata_path',
         type=str,
-        default='http://download.tensorflow.org/data/speech_commands_v0.02.tar.gz',
-        help='Location of speech training data archive on the web.')
-    parser.add_argument(
-        '--data_dir',
-        type=str,
-        default='/tmp/speech_dataset/',
+        default='testdata_as_mfcc',
         help="""\
-        Where to download the speech training data to.
+        Folder path where to load the MFCC dataset from. 
+        Data format: npy. Shape: (1,49,10), Filenames: label_#_nr_#.npy
         """)
     parser.add_argument(
         '--tflite_path',
         type=str,
-        default='models/ds_cnn_q_2d.tflite',
-        help='Path to TFLite file to use for testing.')
-    parser.add_argument(
-        '--silence_percentage',
-        type=float,
-        default=10.0,
-        help="""\
-        How much of the training data should be silence.
-        """)
-    parser.add_argument(
-        '--unknown_percentage',
-        type=float,
-        default=10.0,
-        help="""\
-        How much of the training data should be unknown words.
-        """)
-    parser.add_argument(
-        '--testing_percentage',
-        type=int,
-        default=10,
-        help='What percentage of wavs to use as a test set.')
-    parser.add_argument(
-        '--validation_percentage',
-        type=int,
-        default=10,
-        help='What percentage of wavs to use as a validation set.')
-    parser.add_argument(
-        '--sample_rate',
-        type=int,
-        default=16000,
-        help='Expected sample rate of the wavs',)
-    parser.add_argument(
-        '--clip_duration_ms',
-        type=int,
-        default=1000,
-        help='Expected duration in milliseconds of the wavs',)
-    parser.add_argument(
-        '--window_size_ms',
-        type=float,
-        default=40.0,
-        help='How long each spectrogram timeslice is',)
-    parser.add_argument(
-        '--window_stride_ms',
-        type=float,
-        default=20.0,
-        help='How long each spectrogram timeslice is',)
-    parser.add_argument(
-        '--dct_coefficient_count',
-        type=int,
-        default=10,
-        help='How many bins to use for the MFCC fingerprint',)
+        default='models/compiled_for_edge_tpu/ds_cnn_q_2d_edgetpu.tflite',
+        help='Path to TFLite file to use for testing. Must be compiled for TPU.'
+        )
     parser.add_argument(
         '--wanted_words',
         type=str,
