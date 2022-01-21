@@ -16,25 +16,21 @@
 import argparse
 import tflite_runtime.interpreter as tflite
 #%%
-import tensorflow as tf
 import numpy as np
-#%%
-import data
-import models
-from test import calculate_accuracy
+#from test import calculate_accuracy
+import sklearn.metrics
 
 
-def tflite_test(model_settings, audio_processor, tflite_path):
+
+def tflite_test(wanted_words, tflite_path):
     """Calculate accuracy and confusion matrices on the test set.
 
     A TFLite model used for doing testing.
 
     Args:
-        model_settings: Dictionary of common model settings.
-        audio_processor: Audio processor class object.
         tflite_path: Path to TFLite file to use for inference.
     """
-    test_data = audio_processor.get_data(audio_processor.Modes.TESTING).batch(1)
+    #test_data = audio_processor.get_data(audio_processor.Modes.TESTING).batch(1)
     expected_indices = np.concatenate([y for x, y in test_data])
     predicted_indices = []
 
@@ -43,13 +39,13 @@ def tflite_test(model_settings, audio_processor, tflite_path):
         prediction = tflite_inference(mfcc, tflite_path)
         predicted_indices.append(np.squeeze(tf.argmax(prediction, axis=1)))
 
-    test_accuracy = calculate_accuracy(predicted_indices, expected_indices)
-    confusion_matrix = tf.math.confusion_matrix(expected_indices, predicted_indices,
-                                                num_classes=model_settings['label_count'])
+    #test_accuracy = calculate_accuracy(predicted_indices, expected_indices)
+    #confusion_matrix = tf.math.confusion_matrix(expected_indices, predicted_indices,
+    #                                            num_classes=wanted_words.size+2)
 
     print(confusion_matrix.numpy())
-    print(f'Test accuracy = {test_accuracy * 100:.2f}%'
-          f'(N={audio_processor.set_size(audio_processor.Modes.TESTING)})')
+    #print(f'Test accuracy = {test_accuracy * 100:.2f}%'
+    #      f'(N={audio_processor.set_size(audio_processor.Modes.TESTING)})')
 
 
 def tflite_inference(input_data, tflite_path):
@@ -98,20 +94,7 @@ def tflite_inference(input_data, tflite_path):
 
 
 def main():
-    model_settings = models.prepare_model_settings(len(data.prepare_words_list(FLAGS.wanted_words.split(','))),
-                                                   FLAGS.sample_rate, FLAGS.clip_duration_ms, FLAGS.window_size_ms,
-                                                   FLAGS.window_stride_ms, FLAGS.dct_coefficient_count)
-
-    audio_processor = data.AudioProcessor(data_url=FLAGS.data_url,
-                                          data_dir=FLAGS.data_dir,
-                                          silence_percentage=FLAGS.silence_percentage,
-                                          unknown_percentage=FLAGS.unknown_percentage,
-                                          wanted_words=FLAGS.wanted_words.split(','),
-                                          validation_percentage=FLAGS.validation_percentage,
-                                          testing_percentage=FLAGS.testing_percentage,
-                                          model_settings=model_settings)
-
-    tflite_test(model_settings, audio_processor, FLAGS.tflite_path)
+    tflite_test(FLAGS.wanted_words, FLAGS.tflite_path)
 
 
 if __name__ == '__main__':
