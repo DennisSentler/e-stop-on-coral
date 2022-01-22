@@ -1,6 +1,7 @@
 import time
 import numpy as np
-#%%
+
+
 class InferenceClock:
     def __init__(self):
         self._start_time = 0.0
