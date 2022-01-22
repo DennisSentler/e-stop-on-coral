@@ -18,9 +18,9 @@ import numpy as np
 import sklearn.metrics
 import glob
 import re
+import measure
 
-#%%
-# generator function for collecting data set from file system
+# function for collecting data set from file system
 def load_testdata_mfcc(path):
     files = glob.glob(path + "/label_*_nr_*.npy")
     regex = re.compile("label_([\d]+)_nr")
@@ -39,7 +39,6 @@ def load_interpreter(tflite_path):
     interpreter.allocate_tensors()
     return interpreter
 
-#%%
 def tflite_test(tflite_path, testdata_path):
     """Calculate accuracy and confusion matrices on the test set.
 
@@ -50,6 +49,7 @@ def tflite_test(tflite_path, testdata_path):
     """
     interpreter = load_interpreter(tflite_path)
     test_data = load_testdata_mfcc(testdata_path)
+    clock = measure.InferenceClock()
 
     expected_indices = [y for x, y in test_data]
     predicted_indices = []
@@ -57,19 +57,20 @@ def tflite_test(tflite_path, testdata_path):
     print("Running testing on test set...")
     mfcc_counter = 0
     for mfcc, label in test_data:
+        clock.start()
         prediction = tflite_inference(mfcc, interpreter)
+        clock.stop()
         predicted_indices.append(np.argmax(prediction))
-        print("Inference Nr. %d" % mfcc_counter)
         mfcc_counter += 1
 
     test_accuracy = sklearn.metrics.accuracy_score(predicted_indices, expected_indices)
     confusion_matrix = sklearn.metrics.confusion_matrix(expected_indices, predicted_indices)
-
     print(confusion_matrix)
-    print(f'Test accuracy = {test_accuracy * 100:.2f}%'
-          f'(N={mfcc_counter})')
 
-#%%
+    print(clock.report())
+    print(f'Test accuracy = {test_accuracy * 100:.2f}%'
+          f', (N={mfcc_counter})')
+
 def tflite_inference(input_data, interpreter):
     """Call forwards pass of TFLite file and returns the result.
 
@@ -112,7 +113,6 @@ def tflite_inference(input_data, interpreter):
 
     return output_data
 
-#%%
 def main():
     tflite_test(FLAGS.tflite_path, FLAGS.testdata_path)
 
