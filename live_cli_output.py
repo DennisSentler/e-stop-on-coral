@@ -14,19 +14,23 @@ def generate_table() -> Table:
     table.add_column("Word")
     table.add_column("Probability")
 
-    for row in range(10):
+    for index, word in enumerate(WORDS):
         value = random.random() * 100
         table.add_row(
-            f"{row}", f"{value:3.2f}", "[red]ERROR" if value < 50 else "[green]SUCCESS"
+            f"{index}", 
+            f"   {word}" if value < 50 else f"[green]-> {word}", 
+            f"{value:3.2f}%" if value < 50 else f"[bold]{value:3.2f}%"
         )
     return table
 
 def main():
     #tflite_test(FLAGS.tflite_path, FLAGS.testdata_path)
-    print(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}")
-    with Live(generate_table(), refresh_per_second=20) as live:
-        for _ in range(4000):
-            time.sleep(0.05)
+    main_table = Table(title="Live CLI Inference")
+    main_table.add_column(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}", justify="center", no_wrap=True)
+    #print(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}")
+    with Live(generate_table(), refresh_per_second=5) as live:
+        while(True):
+            time.sleep(0.2)
             live.update(generate_table())
 
 
@@ -46,4 +50,5 @@ if __name__ == '__main__':
         help='Words to use (others will be added to an unknown label)',)
 
     FLAGS, _ = parser.parse_known_args()
+    WORDS = ["_silence_","_unknown_"] + FLAGS.wanted_words.split(",")
     main()
