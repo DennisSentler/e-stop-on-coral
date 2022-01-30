@@ -44,9 +44,9 @@ def main():
     #tflite_test(FLAGS.tflite_path, FLAGS.testdata_path)
     
     #print(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}")
-    with Live(generate_table(), refresh_per_second=5) as live:
+    with Live(generate_table(), refresh_per_second=20) as live:
         while(True):
-            time.sleep(0.2)
+            time.sleep(0.05)
             live.update(generate_table())
 
 
