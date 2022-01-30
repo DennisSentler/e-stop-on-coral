@@ -7,6 +7,12 @@ import tensorflow as tf
 import data as data_processor
 import models
 
+#%%
+import pyaudio
+#%%
+p = pyaudio.PyAudio()
+#%%
+
 def initAudioStream():
     CHUNK = 1600
     FORMAT = pyaudio.paInt16

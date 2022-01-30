@@ -38,7 +38,7 @@ stream.stop_stream()
 stream.close()
 audio.terminate()
  
-waveFile = wave.open(f'%sdev_%d_%s' % (PATH, index, WAVE_OUTPUT_FILENAME), 'wb')
+waveFile = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
 waveFile.setnchannels(CHANNELS)
 waveFile.setsampwidth(audio.get_sample_size(FORMAT))
 waveFile.setframerate(RATE)
