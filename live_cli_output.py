@@ -7,6 +7,10 @@ from rich.live import Live
 from rich.table import Table
 from rich.layout import Layout
 from rich.panel import Panel
+from rich.bar import Bar
+from rich.color import Color
+
+
 
 
 from rich import print
@@ -27,10 +31,20 @@ def generate_table() -> Table:
     main.add_column("Info")
     main.add_column("Inference")
 
-    main.add_row(
-        inference_table, inference_table
-    )
     grid.add_row(main)
+    stats = Table(show_lines=True)
+    stats.add_column("Name")
+    stats.add_column("Value")
+    vol_value = random.randint(20, 30)
+    cpu_value = random.randint(80, 95)
+    mem_value = random.randint(70, 88)
+    
+    stats.add_row("Volume",Bar(100,0,vol_value,width=25, color=Color.from_rgb(255,255-vol_value*2.55,255-vol_value*2.55)))
+    stats.add_row("CPU",Bar(100,0,cpu_value,width=25, color=Color.from_rgb(255,255-cpu_value*2.55,255-cpu_value*2.55)))
+    stats.add_row("Memory",Bar(100,0,mem_value,width=25, color=Color.from_rgb(255,255-mem_value*2.55,255-mem_value*2.55)))
+    main.add_row(
+        inference_table, stats
+    )
     for index, word in enumerate(WORDS):
         value = random.random() * 100
         inference_table.add_row(
@@ -38,6 +52,7 @@ def generate_table() -> Table:
             f"   {word}" if value < 50 else f"[green]-> {word}", 
             f"{value:3.2f}%" if value < 50 else f"[bold]{value:3.2f}%"
         )
+
     return grid
 
 def main():
