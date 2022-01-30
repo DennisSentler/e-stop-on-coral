@@ -9,6 +9,9 @@ from rich.layout import Layout
 from rich.panel import Panel
 from rich.bar import Bar
 from rich.color import Color
+from gpiozero import CPUTemperature
+
+
 
 
 
@@ -38,10 +41,13 @@ def generate_table() -> Table:
     vol_value = random.randint(20, 30)
     cpu_value = random.randint(80, 95)
     mem_value = random.randint(70, 88)
+    cpu_temp = CPUTemperature()
+
     
     stats.add_row("Volume",Bar(100,0,vol_value,width=25, color=Color.from_rgb(255,255-vol_value*2.55,255-vol_value*2.55)))
     stats.add_row("CPU",Bar(100,0,cpu_value,width=25, color=Color.from_rgb(255,255-cpu_value*2.55,255-cpu_value*2.55)))
     stats.add_row("Memory",Bar(100,0,mem_value,width=25, color=Color.from_rgb(255,255-mem_value*2.55,255-mem_value*2.55)))
+    stats.add_row("Temperature",Bar(100,0,mem_value,width=25, color=Color.from_rgb(255,255-cpu_temp*2.55,255-cpu_temp*2.55)))
     main.add_row(
         inference_table, stats
     )
