@@ -1,32 +1,48 @@
 import random
 import time
 import argparse
+from datetime import datetime
 
 from rich.live import Live
 from rich.table import Table
-from rich import print
+from rich.layout import Layout
+from rich.panel import Panel
 
+
+from rich import print
 
 def generate_table() -> Table:
     """Make a new table."""
-    table = Table()
-    table.add_column("ID")
-    table.add_column("Word")
-    table.add_column("Probability")
+    grid = Table()
+    grid.add_column("Live CLI Inference", justify="center")    
+    grid.add_row(
+        f"[bold green]Model loaded:[/bold green]\r\n{FLAGS.tflite_path}"
+    )
 
+    inference_table = Table()
+    inference_table.add_column("ID")
+    inference_table.add_column("Word")
+    inference_table.add_column("Probability")
+    main = Table.grid()
+    main.add_column("Info")
+    main.add_column("Inference")
+
+    main.add_row(
+        inference_table, inference_table
+    )
+    grid.add_row(main)
     for index, word in enumerate(WORDS):
         value = random.random() * 100
-        table.add_row(
+        inference_table.add_row(
             f"{index}", 
             f"   {word}" if value < 50 else f"[green]-> {word}", 
             f"{value:3.2f}%" if value < 50 else f"[bold]{value:3.2f}%"
         )
-    return table
+    return grid
 
 def main():
     #tflite_test(FLAGS.tflite_path, FLAGS.testdata_path)
-    main_table = Table(title="Live CLI Inference")
-    main_table.add_column(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}", justify="center", no_wrap=True)
+    
     #print(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}")
     with Live(generate_table(), refresh_per_second=5) as live:
         while(True):
