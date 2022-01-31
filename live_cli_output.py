@@ -11,11 +11,6 @@ from rich.bar import Bar
 from rich.color import Color
 from gpiozero import CPUTemperature
 
-
-
-
-
-
 from rich import print
 
 def generate_table() -> Table:

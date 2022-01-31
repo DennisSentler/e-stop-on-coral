@@ -1,50 +1,42 @@
 import argparse
-import pyaudio
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-import tensorflow as tf
-import data as data_processor
-import models
-
-#%%
-import pyaudio
-#%%
-p = pyaudio.PyAudio()
-#%%
-
-def initAudioStream():
-    CHUNK = 1600
-    FORMAT = pyaudio.paInt16
-    SAMPLE_RATE = 16000
-    INPUT_LENGTH_MS = 1000
-
-    p = pyaudio.PyAudio()
-
-    stream = p.open(format=FORMAT,
-                    channels=1,
-                    rate=SAMPLE_RATE,
-                    input=True,
-                    frames_per_buffer=CHUNK)
-    stream.start_stream()
-    return stream
+import audio_provider as Audio
 
 
-def loadModel():
-    model_settings = models.prepare_model_settings(
-            len(WORDS), 
-            FLAGS.sample_rate, 
-            FLAGS.clip_duration_ms, 
-            FLAGS.window_size_ms, 
-            FLAGS.window_stride_ms, 
-            FLAGS.dct_coefficient_count
-        )
-    model = models.create_model(model_settings, FLAGS.model_architecture, FLAGS.model_size_info, False)
-    model.load_weights(FLAGS.checkpoint).expect_partial()
-    return model
+# def initAudioStream():
+#     CHUNK = 1600
+#     FORMAT = pyaudio.paInt16
+#     SAMPLE_RATE = 16000
+#     INPUT_LENGTH_MS = 1000
 
-def bytesToArray(bytes):
-    return np.frombuffer(bytes, np.int16)
+#     p = pyaudio.PyAudio()
+
+#     stream = p.open(format=FORMAT,
+#                     channels=1,
+#                     rate=SAMPLE_RATE,
+#                     input=True,
+#                     frames_per_buffer=CHUNK)
+#     stream.start_stream()
+#     return stream
+
+
+# def loadModel():
+#     model_settings = models.prepare_model_settings(
+#             len(WORDS), 
+#             FLAGS.sample_rate, 
+#             FLAGS.clip_duration_ms, 
+#             FLAGS.window_size_ms, 
+#             FLAGS.window_stride_ms, 
+#             FLAGS.dct_coefficient_count
+#         )
+#     model = models.create_model(model_settings, FLAGS.model_architecture, FLAGS.model_size_info, False)
+#     model.load_weights(FLAGS.checkpoint).expect_partial()
+#     return model
+
+# def bytesToArray(bytes):
+#     return np.frombuffer(bytes, np.int16)
 
 def saveDataPlot(figure, data, name):
     ax = figure.axes[0]
@@ -53,58 +45,33 @@ def saveDataPlot(figure, data, name):
     ax.plot(data)
     figure.savefig("plots/%s.jpg" % name)
     
-def preProcessAudio(audio):
-    audio_scaled = np.interp(audio, (np.iinfo(np.int16).min, np.iinfo(np.int16).max), (-1, +1))
-    audio_tensor = tf.convert_to_tensor(audio_scaled,  dtype=tf.float32)
-    audio_tensor = tf.reshape(audio_tensor, [16000,1])
-    audio_mfcc = data_processor.calculate_mfcc(audio_tensor, 16000, 640, 320, 10)
-    audio_mfcc = tf.reshape(audio_mfcc, [-1])
-    return audio_mfcc
+# def preProcessAudio(audio):
+#     audio_scaled = np.interp(audio, (np.iinfo(np.int16).min, np.iinfo(np.int16).max), (-1, +1))
+#     audio_tensor = tf.convert_to_tensor(audio_scaled,  dtype=tf.float32)
+#     audio_tensor = tf.reshape(audio_tensor, [16000,1])
+#     audio_mfcc = data_processor.calculate_mfcc(audio_tensor, 16000, 640, 320, 10)
+#     audio_mfcc = tf.reshape(audio_mfcc, [-1])
+#     return audio_mfcc
 
 def main():
-    stream = initAudioStream()
-    model = loadModel()
+    mic = Audio.AudioProvider()
+    mic.run()
+    #stream = initAudioStream()
+    #model = loadModel()
 
     # prefill
-    audio = []
-    audio_bytes = stream.read(FLAGS.sample_rate)
-    audio.extend(bytesToArray(audio_bytes))
-
-    #saveDataPlot(fig, audio, "testsavefig")
-    #test if concatination works
-    # stream.start_stream()
-    # saveDataPlot(fig, audio, "0_frames_org")
-    # audio_bytes = bytesToArray(stream.read(CHUNK)) 
-    # saveDataPlot(fig, audio_bytes, "1_chunk")
-    # tmp_frames = audio
-    # tmp_frames.extend(audio_bytes)
-    # saveDataPlot(fig, tmp_frames, "2_1_tmp_frames_extended")
-    # del tmp_frames[:CHUNK]
-    # saveDataPlot(fig, tmp_frames, "2_2_tmp_frames_del")
-    # audio = tmp_frames
-    # saveDataPlot(fig, tmp_frames, "3_frames_final")
-    # stream.stop_stream()
-    #looping concatination
+    # audio = []
+    # audio_bytes = stream.read(FLAGS.sample_rate)
+    # audio.extend(bytesToArray(audio_bytes))
 
     while True:
-        chunk = int(FLAGS.sample_rate/10)
-        audio_bytes = bytesToArray(stream.read(chunk)) 
-        tmp_audio = audio
-        tmp_audio.extend(audio_bytes)
-        del tmp_audio[:chunk]
-        audio = tmp_audio
-        #saveDataPlot(fig, audio, "loop%d" % i)
-        mfcc = preProcessAudio(audio)
-        predictions = model(mfcc, training=False).numpy()[0]
-        highes_pred = tf.argmax([predictions], axis=1).numpy()[0]
-        if predictions[highes_pred] > 0.7:
-            print('Prediction: %s, with %dp' % (WORDS[highes_pred], predictions[highes_pred]*100))
-
-
-
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+        #audio = mic.readAudioWindow()
+        print(mic.clock.report())
+        # mfcc = preProcessAudio(audio)
+        # predictions = model(mfcc, training=False).numpy()[0]
+        # highes_pred = tf.argmax([predictions], axis=1).numpy()[0]
+        # if predictions[highes_pred] > 0.7:
+        #     print('Prediction: %s, with %dp' % (WORDS[highes_pred], predictions[highes_pred]*100))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

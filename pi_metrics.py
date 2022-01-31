@@ -1,7 +1,7 @@
 import re, subprocess
  
-def check_CPU_temp():
-    temp = None
+def get_CPU_temp() -> float:
+    temp = 0.0
     err, msg = subprocess.getstatusoutput('vcgencmd measure_temp')
     if not err:
         m = re.search(r'-?\d\.?\d*', msg)   # a solution with a  regex
@@ -9,8 +9,12 @@ def check_CPU_temp():
             temp = float(m.group())
         except ValueError: # catch only error needed
             pass
-    return temp, msg
- 
-temp, msg = check_CPU_temp()
-print(f"temperature {temp}°C")
-print(f"full message {msg}")
+    return temp
+
+def get_CPU_clock() -> float:
+    #TODO: impelement
+    return 0.0
+
+def get_mem_alocation() -> float:
+    #TODO: impelement
+    return 0.0
