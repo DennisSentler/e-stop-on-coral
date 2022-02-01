@@ -29,7 +29,7 @@ class InferenceClock:
 
     def report(self) -> str:
         return (f'=== Clock report for "{self.name}" ===\r\n'
-                f'Average IPS = {self.calculate_avg_IPS():.2f}\r\n'
+                f'Average OPS = {self.calculate_avg_OPS():.2f}\r\n'
                 f'Standard deviation = {np.std(self.times_ms):.2f}\r\n'
                 f'Minimum processing time = {np.min(self.times_ms):.2f}ms\r\n'
                 f'Maximum processing time = {np.max(self.times_ms):.2f}ms\r\n'
