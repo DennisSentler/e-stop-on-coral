@@ -1,3 +1,4 @@
+from os import device_encoding
 import pyaudio
 import numpy as np
 import threading
@@ -6,11 +7,22 @@ import python_speech_features as speech_features
 
 class AudioProvider(threading.Thread):
     def __init__(
-            self, sample_rate=16000, 
+            self, 
+            device_index: int,
+            sample_rate: int = 16000, 
             format=pyaudio.paInt16, 
-            reading_chunk=1000,
-            audio_window_s=1
+            reading_chunk: int = 1000,
+            audio_window_s: int = 1
         ):
+        """[summary]
+
+        Args:
+            device_index (int): Index of the input device, use get_input_devices() for more information.
+            sample_rate (int, optional): Defaults to 16000.
+            format (class, optional): Use pyaudio formats. Defaults to pyaudio.paInt16.
+            reading_chunk (int, optional): Number of samples to read from device at once. Defaults to 1000.
+            audio_window_s (int, optional): Size of the provided total window in seconds. Defaults to 1.
+        """
         threading.Thread.__init__(self)
         self.daemon=True
         self._lock = threading.Lock()
@@ -20,10 +32,11 @@ class AudioProvider(threading.Thread):
         self._audio_window = np.zeros(audio_window_s * sample_rate, dtype=np.int16)
         self._chunk = reading_chunk
         self._running = False
-        self.clock = measure.InferenceClock(name="AudioProvider")
+        self.clock = measure.Stopwatch(name="AudioProvider")
         p = pyaudio.PyAudio()
         self._stream = p.open(format=format,
                         channels=1,
+                        input_device_index=device_index,
                         rate=sample_rate,
                         input=True,
                         frames_per_buffer=reading_chunk)
@@ -71,3 +84,15 @@ def pre_proc_audio(audio, sample_rate=16000, windows_size=640, window_stride=320
     mfccs = mfccs.astype(np.float32)
     mfccs = np.expand_dims(mfccs, axis=0)
     return mfccs
+
+def get_input_devices() -> dict:
+    """Reads available input devices from ALSA. 
+
+    Returns:
+        dict: list of devices with all specifications, use index for AudioProvider()
+    """
+    p = pyaudio.PyAudio()
+    device_list = []
+    for d in range(p.get_device_count()):
+        device_list.append(p.get_device_info_by_index(d))
+    return device_list

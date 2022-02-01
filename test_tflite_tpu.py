@@ -49,7 +49,7 @@ def tflite_test(tflite_path, testdata_path):
     """
     interpreter = load_interpreter(tflite_path)
     test_data = load_testdata_mfcc(testdata_path)
-    clock = measure.InferenceClock()
+    clock = measure.Stopwatch()
 
     expected_indices = [y for x, y in test_data]
     predicted_indices = []

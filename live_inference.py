@@ -5,7 +5,7 @@ import interpreter
 import sys
 
 def main():
-    mic = Audio.AudioProvider()
+    mic = Audio.AudioProvider(FLAGS.input_device)
     mic.start()
     tpu = interpreter.Intepreter(FLAGS.tflite_path, name="Test")
     tpu.start()
@@ -34,6 +34,11 @@ if __name__ == '__main__':
         type=int,
         default=16000,
         help='Expected sample rate of the wavs',)
+    parser.add_argument(
+        '--input_device',
+        type=int,
+        default=6,
+        help='Index of the prefered device from pyaudio',)
     parser.add_argument(
         '--clip_duration_ms',
         type=int,

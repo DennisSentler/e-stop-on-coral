@@ -2,7 +2,7 @@ import time
 import numpy as np
 
 
-class InferenceClock:
+class Stopwatch:
     def __init__(self, name="default", capacity=2000):
         self.name = name
         self.capacity = capacity
