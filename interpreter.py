@@ -50,7 +50,7 @@ class Intepreter(threading.Thread):
             May return '[None]'.
         """
         with self._output_lock:
-            return self._output_data
+            return self._output_data[0]
 
     def run(self):
         """

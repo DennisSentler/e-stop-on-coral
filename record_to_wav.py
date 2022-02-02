@@ -4,10 +4,10 @@ import wave
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000
-CHUNK = 512
+CHUNK = 1000
 RECORD_SECONDS = 5
 WAVE_OUTPUT_FILENAME = "recordedFile.wav"
-device_index = 2
+device_index = 1
 audio = pyaudio.PyAudio()
 
 print("----------------------record device list---------------------")

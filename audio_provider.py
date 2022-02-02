@@ -40,6 +40,13 @@ class AudioProvider(threading.Thread):
                         rate=sample_rate,
                         input=True,
                         frames_per_buffer=reading_chunk)
+        print(
+                f"""
+                AudioProvider initiated.
+                Selected Device: {device_index}
+                Sample Rate: {sample_rate}
+                """
+            )
 
     def _bytes_to_array(self, bytes):
         return np.frombuffer(bytes, np.int16)

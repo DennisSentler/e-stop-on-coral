@@ -3,21 +3,46 @@ import numpy as np
 import audio_provider as Audio
 import interpreter
 import sys
+import matplotlib.pyplot as plt
+
+def saveDataPlot(audio, mfcc, name):
+    plt.clf()
+    fig, (audio_axis, mfcc_axis) = plt.subplots(1,2, gridspec_kw={'width_ratios': [3, 1]})
+    fig.suptitle(name)
+    
+    #audio plot
+    audio_axis.set_ylim(np.iinfo(np.int16).min, np.iinfo(np.int16).max)
+    audio_axis.plot([*range(len(audio))], audio)
+    audio_axis.set_xlabel("time")
+    audio_axis.set_ylabel("a")
+
+    #mfcc plot
+    mfcc_axis.set_xlabel("mfcc coeffi.")
+    mfcc_axis.set_xlabel("time")
+    mfcc_axis.imshow(mfcc[0], interpolation='nearest', cmap='coolwarm', origin='lower')
+    plt.savefig("plot.jpg")
 
 def main():
     mic = Audio.AudioProvider(FLAGS.input_device)
     mic.start()
     tpu = interpreter.Intepreter(FLAGS.tflite_path, name="Test")
     tpu.start()
+    last_prediction = 11
 
     try:
         while True:
             audio = mic.read_audio_window()
             mfccs = Audio.pre_proc_audio(audio)
             tpu.set_input(mfccs)
-            prediction = tpu.get_output()
-            if None not in prediction:
-                print(np.argmax(prediction))
+            prediction_list = tpu.get_output()
+            if prediction_list is not None:
+                highest_pred = np.argmax(prediction_list)
+                if highest_pred != last_prediction:
+                    last_prediction = highest_pred
+                    if highest_pred < len(WORDS):
+                        print(f"Prediction: {WORDS[highest_pred]} with {int(prediction_list[highest_pred]*100)}%")
+                        saveDataPlot(audio, mfccs, f"{WORDS[highest_pred]}_{int(prediction_list[highest_pred]*100)}")
+
 
     except (KeyboardInterrupt, SystemExit):
         mic.stop()
@@ -37,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--input_device',
         type=int,
-        default=6,
+        default=2,
         help='Index of the prefered device from pyaudio',)
     parser.add_argument(
         '--clip_duration_ms',
@@ -72,5 +97,5 @@ if __name__ == '__main__':
         help='Words to use (others will be added to an unknown label)',)
 
     FLAGS, _ = parser.parse_known_args()
-    #WORDS = data_processor.prepare_words_list(FLAGS.wanted_words.split(','))
+    WORDS = FLAGS.wanted_words.split(',')
     main()
