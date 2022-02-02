@@ -6,7 +6,6 @@ import sys
 import matplotlib.pyplot as plt
 
 def saveDataPlot(audio, mfcc, name):
-    plt.clf()
     fig, (audio_axis, mfcc_axis) = plt.subplots(1,2, gridspec_kw={'width_ratios': [3, 1]})
     fig.suptitle(name)
     
@@ -21,6 +20,7 @@ def saveDataPlot(audio, mfcc, name):
     mfcc_axis.set_xlabel("time")
     mfcc_axis.imshow(mfcc[0], interpolation='nearest', cmap='coolwarm', origin='lower')
     plt.savefig("plot.jpg")
+    plt.cla()
 
 def main():
     mic = Audio.AudioProvider(FLAGS.input_device)
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--input_device',
         type=int,
-        default=2,
+        default=1,
         help='Index of the prefered device from pyaudio',)
     parser.add_argument(
         '--clip_duration_ms',

@@ -36,7 +36,7 @@ class AudioProvider(threading.Thread):
         p = pyaudio.PyAudio()
         self._stream = p.open(format=format,
                         channels=1,
-                        input_device_index=device_index,
+                        #input_device_index=device_index,
                         rate=sample_rate,
                         input=True,
                         frames_per_buffer=reading_chunk)
