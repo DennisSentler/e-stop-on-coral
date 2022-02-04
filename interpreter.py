@@ -3,6 +3,7 @@ import tflite_runtime.interpreter as tflite
 import numpy as np
 import threading
 
+
 class Intepreter(threading.Thread):
     def __init__(
             self, 

@@ -3,9 +3,15 @@ import pyaudio
 import numpy as np
 import threading
 import measure
-import python_speech_features as speech_features
+#import python_speech_features as speech_features
+from multiprocessing import Process
+from tensorflow.python.ops import gen_audio_ops as audio_ops
+
+
 
 class AudioProvider(threading.Thread):
+
+    
     def __init__(
             self, 
             device_index: int,
@@ -24,6 +30,7 @@ class AudioProvider(threading.Thread):
             audio_window_s (int, optional): Size of the provided total window in seconds. Defaults to 1.
         """
         threading.Thread.__init__(self)
+        
         self.daemon=True
         self._lock = threading.Lock()
         self._format = format
@@ -58,6 +65,13 @@ class AudioProvider(threading.Thread):
     def read_audio_window(self):
         return self._audio_window
 
+    def get_mfcc(self):
+        while self._lock:
+            p = Process(target=pre_proc_audio, args=('bob',))
+            p.start()
+            p.join()
+        return "done"
+
     def run(self):
         self._stream.start_stream()
         self._running = True
@@ -73,24 +87,18 @@ class AudioProvider(threading.Thread):
                 self.clock.stop()
         self._stream.stop_stream()
 
+
 def pre_proc_audio(audio, sample_rate=16000, windows_size=640, window_stride=320, num_mfcc=10):
     audio = np.interp(audio, (np.iinfo(np.int16).min, np.iinfo(np.int16).max), (-1, +1))
     audio = audio.astype(np.float32)
 
-    window_size_in_seconds = windows_size/sample_rate
-    window_stride_in_seconds = window_stride/sample_rate
-    mfccs = speech_features.mfcc(
-        audio,
-        samplerate=sample_rate,
-        winlen=window_size_in_seconds,
-        winstep=window_stride_in_seconds,
-        numcep=num_mfcc,
-        nfilt=40,
-        lowfreq=20,
-        highfreq=4000)
-    mfccs = mfccs.astype(np.float32)
-    mfccs = np.expand_dims(mfccs, axis=0)
-    return mfccs
+    spectrogram = audio_ops.audio_spectrogram(input=audio, window_size=windows_size, stride=window_stride,
+                                            magnitude_squared=True)
+    mfcc_features = audio_ops.mfcc(spectrogram, sample_rate, dct_coefficient_count=num_mfcc)
+    print("------------------pre Processing done!!!-------------------")
+    return mfcc_features
+
+
 
 def get_input_devices() -> dict:
     """Reads available input devices from ALSA. 

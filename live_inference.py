@@ -6,7 +6,7 @@ import sys
 import matplotlib.pyplot as plt
 
 def saveDataPlot(audio, mfcc, name):
-    fig, (audio_axis, mfcc_axis) = plt.subplots(1,2, gridspec_kw={'width_ratios': [3, 1]})
+    fig, (audio_axis, mfcc_axis) = plt.subplots(2,1, gridspec_kw={'height_ratios': [3, 1]})
     fig.suptitle(name)
     
     #audio plot
@@ -16,37 +16,40 @@ def saveDataPlot(audio, mfcc, name):
     audio_axis.set_ylabel("a")
 
     #mfcc plot
-    mfcc_axis.set_xlabel("mfcc coeffi.")
+    mfcc_axis.set_ylabel("mfcc c.")
     mfcc_axis.set_xlabel("time")
-    mfcc_axis.imshow(mfcc[0], interpolation='nearest', cmap='coolwarm', origin='lower')
+    mfcc= np.swapaxes(mfcc[0], 0 ,1)
+    mfcc_axis.imshow(mfcc, interpolation='nearest', cmap='coolwarm', origin='lower')
     plt.savefig("plot.jpg")
     plt.cla()
 
 def main():
     mic = Audio.AudioProvider(FLAGS.input_device)
     mic.start()
-    tpu = interpreter.Intepreter(FLAGS.tflite_path, name="Test")
-    tpu.start()
+    # tpu = interpreter.Intepreter(FLAGS.tflite_path, name="Test")
+    # tpu.start()
     last_prediction = 11
 
     try:
         while True:
-            audio = mic.read_audio_window()
-            mfccs = Audio.pre_proc_audio(audio)
-            tpu.set_input(mfccs)
-            prediction_list = tpu.get_output()
-            if prediction_list is not None:
-                highest_pred = np.argmax(prediction_list)
-                if highest_pred != last_prediction:
-                    last_prediction = highest_pred
-                    if highest_pred < len(WORDS):
-                        print(f"Prediction: {WORDS[highest_pred]} with {int(prediction_list[highest_pred]*100)}%")
-                        saveDataPlot(audio, mfccs, f"{WORDS[highest_pred]}_{int(prediction_list[highest_pred]*100)}")
+            #audio = mic.read_audio_window()
+            audio = mic.get_mfcc()
+            print(audio)
+            #mfccs = Audio.pre_proc_audio(audio)
+            # tpu.set_input(mfccs)
+            # prediction_list = tpu.get_output()
+            # if prediction_list is not None:
+            #     highest_pred = np.argmax(prediction_list)
+            #     if highest_pred != last_prediction:
+            #         last_prediction = highest_pred
+            #         if highest_pred < len(WORDS):
+            #             print(f"Prediction: {WORDS[highest_pred]} with {int(prediction_list[highest_pred]*100)}%")
+            #             saveDataPlot(audio, mfccs, f"{WORDS[highest_pred]}_{int(prediction_list[highest_pred]*100)}")
 
 
     except (KeyboardInterrupt, SystemExit):
         mic.stop()
-        tpu.stop()
+        #tpu.stop()
         print("\nINFO: Applicatioon canceled!")
         sys.exit()
 
