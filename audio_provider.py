@@ -87,7 +87,8 @@ def pre_proc_audio(audio, sample_rate=16000, windows_size=640, window_stride=320
         numcep=num_mfcc,
         nfilt=40,
         lowfreq=20,
-        highfreq=4000)
+        highfreq=4000,
+        nfft=windows_size)
     mfccs = mfccs.astype(np.float32)
     mfccs = np.expand_dims(mfccs, axis=0)
     return mfccs
