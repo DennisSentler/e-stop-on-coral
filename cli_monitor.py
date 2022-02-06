@@ -1,20 +1,32 @@
+from cmath import pi
 import random
-import time
 import argparse
-from datetime import datetime
-
-from rich.live import Live
-from rich.table import Table
-from rich.layout import Layout
-from rich.panel import Panel
-from rich.bar import Bar
-from rich.color import Color
-from gpiozero import CPUTemperature
-from inference import live_inference
 
 from rich import print
+from rich.live import Live
+from rich.table import Table
+from rich.bar import Bar
+from rich.color import Color
+#from gpiozero import CPUTemperature
+from command_detector import CommandDetector
+from threading import Thread, Lock
+from pi_metrics import PiMetrics
 
-def generate_table(predictions) -> Table:
+
+pred_lock = Lock()
+def update_predictions():
+    while True:
+        preds = detector.inference() * 100
+        with pred_lock:
+            global predictions
+            predictions = preds
+
+def get_prediction():
+    with pred_lock:
+        global predictions
+        return predictions
+
+def generate_table() -> Table:
     """Make a new table."""
     grid = Table()
     grid.add_column("Live CLI Inference", justify="center")    
@@ -31,20 +43,23 @@ def generate_table(predictions) -> Table:
     main.add_column("Inference")
 
     grid.add_row(main)
+
     stats = Table(show_lines=True)
     stats.add_column("Name")
     stats.add_column("Value")
-    vol_value = random.randint(20, 30)
-    cpu_value = random.randint(80, 95)
-    mem_value = random.randint(70, 88)
-
+    # vol_value = random.randint(20, 30)
+    # cpu_temp = pi_metrics.get_cpu_temp()
+    # mem_allocation = pi_metrics.get_mem_allocation()
+    # cpu_clock = pi_metrics.get_cpu_clock()
+    # stats.add_row("CPU Temp.", f'{cpu_temp}°C' if cpu_temp < 60 else f'[red]{cpu_temp}°C')
+    # stats.add_row("CPU Clock", f'{cpu_clock} MHz' if cpu_clock < 600 else f'[red]{cpu_clock} MHz')
+    # stats.add_row("Memory used", f'{mem_allocation} MB' if mem_allocation < 400 else f'[red]{mem_allocation} MB')
     
-    stats.add_row("Volume",Bar(100,0,vol_value,width=25, color=Color.from_rgb(255,255-vol_value*2.55,255-vol_value*2.55)))
-    stats.add_row("CPU",Bar(100,0,cpu_value,width=25, color=Color.from_rgb(255,255-cpu_value*2.55,255-cpu_value*2.55)))
-    stats.add_row("Memory",Bar(100,0,mem_value,width=25, color=Color.from_rgb(255,255-mem_value*2.55,255-mem_value*2.55)))
+    #stats.add_row("Volume",Bar(100,0,vol_value,width=25, color=Color.from_rgb(255,255-vol_value*2.55,255-vol_value*2.55)))
     main.add_row(
         inference_table, stats
     )
+    predictions = get_prediction()
     for index, word in enumerate(WORDS):
         value = predictions[index]
         inference_table.add_row(
@@ -56,13 +71,19 @@ def generate_table(predictions) -> Table:
     return grid
 
 def main():
-    #tflite_test(FLAGS.tflite_path, FLAGS.testdata_path)
+    global detector
+    global predictions
     predictions = [0.0] * len(WORDS)
-    #print(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}")
-    with Live(generate_table(predictions), refresh_per_second=5) as live:
+    detector = CommandDetector(WORDS, FLAGS.tflite_path)
+    data_poller = Thread(target=update_predictions)
+    data_poller.start()
+
+    # global pi_metrics 
+    # pi_metrics = PiMetrics()
+    # pi_metrics.start()
+    with Live(generate_table(), refresh_per_second=20) as live:
         while(True):
-            predictions = live_inference.inference() * 100
-            live.update(generate_table(predictions))
+            live.update(generate_table())
 
 
 
