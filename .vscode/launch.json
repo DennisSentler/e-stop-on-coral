@@ -12,14 +12,15 @@
             "program": "test_tflite_tpu.py",
             "console": "integratedTerminal",
             "args": ["--testdata_path", "testdata_as_mfcc", 
-                     "--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_q_2d_edgetpu.tflite"]
+                     "--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_quantized_v3_edgetpu.tflite"]
         },
         {
             "name": "Live Inference",
             "type": "python",
             "request": "launch",
             "program": "live_inference.py",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "args": ["--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_quantized_v3_edgetpu.tflite"]
         }
     ]
 }

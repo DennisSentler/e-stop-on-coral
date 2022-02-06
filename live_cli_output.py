@@ -10,10 +10,11 @@ from rich.panel import Panel
 from rich.bar import Bar
 from rich.color import Color
 from gpiozero import CPUTemperature
+from inference import live_inference
 
 from rich import print
 
-def generate_table() -> Table:
+def generate_table(predictions) -> Table:
     """Make a new table."""
     grid = Table()
     grid.add_column("Live CLI Inference", justify="center")    
@@ -45,7 +46,7 @@ def generate_table() -> Table:
         inference_table, stats
     )
     for index, word in enumerate(WORDS):
-        value = random.random() * 100
+        value = predictions[index]
         inference_table.add_row(
             f"{index}", 
             f"   {word}" if value < 50 else f"[green]-> {word}", 
@@ -56,11 +57,12 @@ def generate_table() -> Table:
 
 def main():
     #tflite_test(FLAGS.tflite_path, FLAGS.testdata_path)
-    
+    predictions = [0.0] * len(WORDS)
     #print(f"[bold green]Model loaded:[/bold green] {FLAGS.tflite_path}")
-    with Live(generate_table(), refresh_per_second=60) as live:
+    with Live(generate_table(predictions), refresh_per_second=5) as live:
         while(True):
-            live.update(generate_table())
+            predictions = live_inference.inference() * 100
+            live.update(generate_table(predictions))
 
 
 
@@ -79,5 +81,6 @@ if __name__ == '__main__':
         help='Words to use (others will be added to an unknown label)',)
 
     FLAGS, _ = parser.parse_known_args()
+    global WORDS
     WORDS = ["_silence_","_unknown_"] + FLAGS.wanted_words.split(",")
     main()

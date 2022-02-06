@@ -1,4 +1,3 @@
-from os import device_encoding
 import pyaudio
 import numpy as np
 import threading
@@ -8,7 +7,6 @@ import python_speech_features as speech_features
 class AudioProvider(threading.Thread):
     def __init__(
             self, 
-            device_index: int,
             sample_rate: int = 16000, 
             format=pyaudio.paInt16, 
             reading_chunk: int = 1000,
@@ -36,14 +34,14 @@ class AudioProvider(threading.Thread):
         p = pyaudio.PyAudio()
         self._stream = p.open(format=format,
                         channels=1,
-                        #input_device_index=device_index,
                         rate=sample_rate,
                         input=True,
                         frames_per_buffer=reading_chunk)
+        device_info = p.get_default_input_device_info()
         print(
                 f"""
                 AudioProvider initiated.
-                Selected Device: {device_index}
+                Selected Device: idx {device_info["index"]}, name {device_info["name"]}
                 Sample Rate: {sample_rate}
                 """
             )

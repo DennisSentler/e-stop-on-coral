@@ -5,11 +5,11 @@
         "name": "USB Audio Device: - (hw:1,0)",
         "hostApi": 0,
         "maxInputChannels": 1,
-        "maxOutputChannels": 2,
+        "maxOutputChannels": 0,
         "defaultLowInputLatency": 0.008684807256235827,
-        "defaultLowOutputLatency": 0.008684807256235827,
+        "defaultLowOutputLatency": -1.0,
         "defaultHighInputLatency": 0.034829931972789115,
-        "defaultHighOutputLatency": 0.034829931972789115,
+        "defaultHighOutputLatency": -1.0,
         "defaultSampleRate": 44100.0
     },
     {
