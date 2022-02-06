@@ -3,7 +3,6 @@ import argparse
 import numpy as np
 import pyaudio
 import python_speech_features as speech_features
-from test_tflite_tpu import tflite_inference
 import audio_provider as audio_lib
 
 TPU_ON = False
@@ -43,10 +42,6 @@ def calculate_mfcc(audio_signal, audio_sample_rate, window_size, window_stride, 
     Returns:
         Calculated mffc features.
     """
-    # spectrogram = audio_ops.audio_spectrogram(input=audio_signal, window_size=window_size, stride=window_stride,
-    #                                           magnitude_squared=True)
-
-    # mfcc_features = audio_ops.mfcc(spectrogram, audio_sample_rate, dct_coefficient_count=num_mfcc)
 
     window_size_in_seconds = window_size/audio_sample_rate
     window_stride_in_seconds = window_stride/audio_sample_rate
@@ -105,27 +100,55 @@ def saveDataPlot(audio, mfcc, name):
     mfcc_axis.imshow(mfcc[0], interpolation='nearest', cmap='coolwarm', origin='lower')
     plt.savefig("plot.jpg")
     plt.cla()
-    
-# p, stream = initAudioStream()
-audio_provider = audio_lib.AudioProvider()
-audio_provider.start()
-tpu = load_interpreter("models/compiled_for_edge_tpu/ds_cnn_quantized_v3_edgetpu.tflite")
-
-# audio = []
-# audio_bytes = stream.read(16000)
-# audio.extend(bytesToArray(audio_bytes))
 
 def inference():
     global audio_provider
-    # chunk = int(16000/10)
-    # audio_bytes = bytesToArray(stream.read(chunk)) 
-    # tmp_audio = audio
-    # tmp_audio.extend(audio_bytes)
-    # del tmp_audio[:chunk]
-    # audio = tmp_audio
     audio = audio_provider.read_audio_window()
     mfcc = preProcessAudio(audio)
-    return tflite_inference(mfcc, tpu)[0]
+ 
+    predictions = tflite_inference(mfcc, tpu)[0]
+    return predictions
+
+def tflite_inference(input_data, interpreter):
+    """Call forwards pass of TFLite file and returns the result.
+
+    Args:
+        input_data: Input data to use on forward pass.
+        interpreter: Intepreter from loaded tflite model.
+
+    Returns:
+        Output from inference.
+    """
+
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    input_dtype = input_details[0]["dtype"]
+    output_dtype = output_details[0]["dtype"]
+
+    # Check if the input/output type is quantized,
+    # set scale and zero-point accordingly
+    if input_dtype == np.int8:
+        input_scale, input_zero_point = input_details[0]["quantization"]
+    else:
+        input_scale, input_zero_point = 1, 0
+
+    input_data = input_data / input_scale + input_zero_point
+    input_data = np.round(input_data) if input_dtype == np.int8 else input_data
+
+    if output_dtype == np.int8:
+        output_scale, output_zero_point = output_details[0]["quantization"]
+    else:
+        output_scale, output_zero_point = 1, 0
+
+
+    interpreter.set_tensor(input_details[0]['index'], input_data.astype(input_dtype))
+    interpreter.invoke()
+
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+
+    output_data = output_scale * (output_data.astype(np.float32) - output_zero_point)
+    return output_data
 
 def main():
 
@@ -136,12 +159,15 @@ def main():
             if predictions[highes_pred] > 0.7:
                 print('Prediction: %s, with %dp' % (WORDS[highes_pred], predictions[highes_pred]*100))
     except (KeyboardInterrupt, SystemExit):
-        # global stream
-        # global p
-        # stream.stop_stream()
-        # p.close(stream)
         print("\nINFO: Applicatioon canceled!")
         sys.exit()
+
+def loadModules():
+    global audio_provider
+    global tpu
+    audio_provider = audio_lib.AudioProvider()
+    audio_provider.start()
+    tpu = load_interpreter(FLAGS.tflite_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -189,4 +215,5 @@ if __name__ == '__main__':
 
     FLAGS, _ = parser.parse_known_args()
     WORDS = ["__silence__", "__unknown__"] + FLAGS.wanted_words.split(',')
+    loadModules()
     main()
