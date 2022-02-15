@@ -1,7 +1,7 @@
 import pyaudio
 import numpy as np
 import threading
-import measure
+#import measure
 import python_speech_features as speech_features
 import contextlib
 import os, sys
@@ -34,7 +34,7 @@ class AudioProvider(threading.Thread):
         self._audio_window = np.zeros(audio_window_ms * int(sample_rate/1000), dtype=np.int16)
         self._chunk = reading_stride
         self._running = False
-        self.clock = measure.Stopwatch(name="AudioProvider")
+        # self.clock = measure.Stopwatch(name="AudioProvider")
         # ignoring stdout during creation of PyAudio
         with ignoreStderr():
             p = pyaudio.PyAudio()
@@ -60,7 +60,7 @@ class AudioProvider(threading.Thread):
         self._stream.start_stream()
         self._running = True
         while self._running:
-            self.clock.start()
+            #self.clock.start()
             audio_bytes = self._stream.read(self._chunk)
             audio_arr = self._bytes_to_array(audio_bytes)
             tmp_audio = self._audio_window
@@ -68,7 +68,7 @@ class AudioProvider(threading.Thread):
                 tmp_audio = [*tmp_audio, *audio_arr]
                 del tmp_audio[:self._chunk]
                 self._audio_window = tmp_audio
-                self.clock.stop()
+                #self.clock.stop()
         self._stream.stop_stream()
 
 def pre_proc_audio(audio, sample_rate=16000, windows_size=640, window_stride=320, num_mfcc=10):

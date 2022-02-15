@@ -6,8 +6,11 @@ import argparse
 import numpy as np
 import python_speech_features as speech_features
 import audio_provider as audio_lib
+from measure import clockwatch
 
 TPU_ON = False
+INFERENCE = "Inference"
+PRE_PROC = "Pre Processing"
 try:
     import tflite_runtime.interpreter as tflite_tpu
     logging.info("Imported TPU tf lite interpreter succesfully")
@@ -28,6 +31,8 @@ class CommandDetector():
             audio_window_ms: int = 1000,
             audio_reading_stride: int = 1000,
         ):
+        clockwatch.addClock(INFERENCE)
+        clockwatch.addClock(PRE_PROC)
         self.commands = command_list
         self.audio_provider = audio_lib.AudioProvider(
             sample_rate=audio_sample_rate, 
@@ -40,8 +45,12 @@ class CommandDetector():
 
     def inference(self):
         audio = self.audio_provider.read_audio_window()
+        clockwatch.start(PRE_PROC)
         mfcc = self.preProcessAudio(audio)
+        clockwatch.stop(PRE_PROC)
+        clockwatch.start(INFERENCE)
         predictions = self.tflite_inference(mfcc)
+        clockwatch.stop(INFERENCE)
         return predictions
 
     def preProcessAudio(self, audio):

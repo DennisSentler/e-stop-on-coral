@@ -1,86 +1,82 @@
-from cmath import pi
-import random
 import argparse
-
 from rich import print
 from rich.live import Live
 from rich.table import Table
-from rich.bar import Bar
-from rich.color import Color
-#from gpiozero import CPUTemperature
-from command_detector import CommandDetector
+from command_detector import CommandDetector, INFERENCE, PRE_PROC
 from threading import Thread, Lock
-from pi_metrics import PiMetrics
+from measure import clockwatch
 
+CLOCKS = [PRE_PROC, INFERENCE]
 
 pred_lock = Lock()
 def update_predictions():
     while True:
         preds = detector.inference() * 100
         with pred_lock:
-            global predictions
-            predictions = preds
+            global __predictions
+            __predictions = preds
 
 def get_prediction():
     with pred_lock:
-        global predictions
-        return predictions
+        global __predictions
+        return __predictions
 
 def generate_table() -> Table:
     """Make a new table."""
-    grid = Table()
-    grid.add_column("Live CLI Inference", justify="center")    
-    grid.add_row(
+    main_table = Table()
+    main_table.add_column("Live CLI Inference", justify="center")    
+    main_table.add_row(
         f"[bold green]Model loaded:[/bold green]\r\n{FLAGS.tflite_path}"
     )
 
-    inference_table = Table()
-    inference_table.add_column("ID")
-    inference_table.add_column("Word")
-    inference_table.add_column("Probability")
-    main = Table.grid()
-    main.add_column("Info")
-    main.add_column("Inference")
+    sub_table = Table.grid()
+    sub_table.add_column()
+    infrence_table = Table(expand = True)
+    clocks_table = Table(expand = True)
 
-    grid.add_row(main)
 
-    stats = Table(show_lines=True)
-    stats.add_column("Name")
-    stats.add_column("Value")
-    # vol_value = random.randint(20, 30)
-    # cpu_temp = pi_metrics.get_cpu_temp()
-    # mem_allocation = pi_metrics.get_mem_allocation()
-    # cpu_clock = pi_metrics.get_cpu_clock()
-    # stats.add_row("CPU Temp.", f'{cpu_temp}°C' if cpu_temp < 60 else f'[red]{cpu_temp}°C')
-    # stats.add_row("CPU Clock", f'{cpu_clock} MHz' if cpu_clock < 600 else f'[red]{cpu_clock} MHz')
-    # stats.add_row("Memory used", f'{mem_allocation} MB' if mem_allocation < 400 else f'[red]{mem_allocation} MB')
-    
-    #stats.add_row("Volume",Bar(100,0,vol_value,width=25, color=Color.from_rgb(255,255-vol_value*2.55,255-vol_value*2.55)))
-    main.add_row(
-        inference_table, stats
-    )
+    infrence_table.add_column("ID")
+    infrence_table.add_column("Word")
+    infrence_table.add_column("Probability")
+
     predictions = get_prediction()
     for index, word in enumerate(WORDS):
         value = predictions[index]
-        inference_table.add_row(
+        infrence_table.add_row(
             f"{index}", 
             f"   {word}" if value < 50 else f"[green]-> {word}", 
-            f"{value:3.2f}%" if value < 50 else f"[bold]{value:3.2f}%"
+            f"{value:3.2f} %" if value < 50 else f"[bold]{value:3.2f} %"
         )
 
-    return grid
+    clocks_table.add_column("Name")
+    clocks_table.add_column("OP/s", justify="right")
+    clocks_table.add_column("Std. diviation", justify="right")
+    clocks_table.add_column("Min. time", justify="right")
+    clocks_table.add_column("Max. time", justify="right")
+
+    for clock in CLOCKS:
+        ops = clockwatch.calculate_avg_OPS(clock)
+        std_div = clockwatch.get_std_deviation(clock)
+        min, max = clockwatch.get_min_max_values(clock)
+        clocks_table.add_row(
+            f"{clock.lower()}", 
+            "-" if ops is None else     f"{ops:.2f}",
+            "-" if std_div is None else f"{std_div:.2f}",
+            "-" if min is None else     f"{min}",
+            "-" if max is None else     f"{max}"
+        )
+    sub_table.add_row(infrence_table, clocks_table)
+    main_table.add_row(sub_table)
+    return main_table
 
 def main():
     global detector
-    global predictions
-    predictions = [0.0] * len(WORDS)
+    global __predictions
+    __predictions = [0.0] * len(WORDS)
     detector = CommandDetector(WORDS, FLAGS.tflite_path)
     data_poller = Thread(target=update_predictions)
     data_poller.start()
 
-    # global pi_metrics 
-    # pi_metrics = PiMetrics()
-    # pi_metrics.start()
     with Live(generate_table(), refresh_per_second=20) as live:
         while(True):
             live.update(generate_table())
