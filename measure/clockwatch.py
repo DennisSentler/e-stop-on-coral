@@ -2,7 +2,7 @@ import time
 import numpy as np
 from threading import Lock
 
-__CAPACITY = 2000
+__CAPACITY = 200
 __clocks = {}
 __lock = Lock()
 

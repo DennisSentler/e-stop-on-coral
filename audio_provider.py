@@ -44,7 +44,7 @@ class AudioProvider(threading.Thread):
                         input=True,
                         frames_per_buffer=reading_stride)
         device_info = p.get_default_input_device_info()
-        logging.info(f'AudioProvider initiated. Selected Device: index {device_info["index"]}, name {device_info["name"]} Sample Rate: {sample_rate}')
+        logging.info(f'AudioProvider initiated. Selected Device: index {device_info["index"]}, name "{device_info["name"]}", Sample Rate: {sample_rate}')
 
     def _bytes_to_array(self, bytes):
         return np.frombuffer(bytes, np.int16)

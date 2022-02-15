@@ -15,12 +15,13 @@
                      "--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_quantized_v3_edgetpu.tflite"]
         },
         {
-            "name": "Live Inference",
+            "name": "cli moni",
             "type": "python",
             "request": "launch",
-            "program": "live_inference.py",
+            "program": "cli_monitor.py",
             "console": "integratedTerminal",
-            "args": ["--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_quantized_v3_edgetpu.tflite"]
+            "args": ["--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_quantized_v3_edgetpu.tflite",
+                     "--cli_refresh_per_s", "5"]
         }
     ]
 }
