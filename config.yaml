@@ -1,4 +1,5 @@
 # List of configurations, set "use: true/false", for choosing your wanted configuration.
+# This config file path has to be exported to $CONFIG_PATH
 ---
 # default config
 - use: true # true or false, if this config should be used, if multiple are set on true, the first one will be used
