@@ -1,0 +1,31 @@
+# List of configurations, set "use: true/false", for choosing your wanted configuration.
+---
+# default config
+- use: true # true or false, if this config should be used, if multiple are set on true, the first one will be used
+  audio:
+    sample_rate: 16000 
+    channels: 1
+    audio_length_seconds: 1 # length of the audio clips
+    update_frequency: 16 # Hz, how often the audio stream is updated by the audio provider
+  mfcc:
+    window_size: 640
+    window_stride: 320
+    coefficient: 10
+  model:
+    words: ["__silence__", "__unkown__", "yes", "no", "up", "down", "left", "right", "on", "off", "stop", "go"]
+
+# config template
+- use: false
+  audio:
+    sample_rate:
+    channels:
+    audio_length_seconds:
+    update_frequency:
+  mfcc:
+    window_size:
+    window_stride:
+    coefficient:
+  model:
+    words: []
+
+  

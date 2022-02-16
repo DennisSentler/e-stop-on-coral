@@ -1,12 +1,15 @@
 import argparse
+import sys
 from rich import print
 from rich.live import Live
 from rich.table import Table
-from command_detector import CommandDetector, INFERENCE, PRE_PROC, CLOCK_TOTAL
+from command_detector import CommandDetector, CLOCK_INFERENCE, CLOCK_PRE_PROC, CLOCK_TOTAL
 from threading import Thread, Lock
-from measure import clockwatch
+from measure import clock
+from config import MODEL
+from logger import log
 
-CLOCKS = [PRE_PROC, INFERENCE, CLOCK_TOTAL]
+CLOCKS = [CLOCK_PRE_PROC, CLOCK_INFERENCE, CLOCK_TOTAL]
 
 pred_lock = Lock()
 def update_predictions():
@@ -34,13 +37,12 @@ def generate_table() -> Table:
     infrence_table = Table(expand = True)
     clocks_table = Table(expand = True)
 
-
     infrence_table.add_column("ID")
     infrence_table.add_column("Word")
     infrence_table.add_column("Probability")
 
     predictions = get_prediction()
-    for index, word in enumerate(WORDS):
+    for index, word in enumerate(MODEL['words']):
         value = predictions[index]
         infrence_table.add_row(
             f"{index}", 
@@ -54,12 +56,12 @@ def generate_table() -> Table:
     clocks_table.add_column("Min. time", justify="right")
     clocks_table.add_column("Max. time", justify="right")
 
-    for clock in CLOCKS:
-        ops = clockwatch.calculate_avg_OPS(clock)
-        std_div = clockwatch.get_std_deviation(clock)
-        min, max = clockwatch.get_min_max_values(clock)
+    for c_name in CLOCKS:
+        ops = clock.calculate_avg_OPS(c_name)
+        std_div = clock.get_std_deviation(c_name)
+        min, max = clock.get_min_max_values(c_name)
         clocks_table.add_row(
-            f"{clock.lower()}", 
+            f"{c_name.lower()}", 
             "-" if ops is None else     f"{ops:.2f}",
             "-" if std_div is None else f"{std_div:.2f}",
             "-" if min is None else     f"{min} ms",
@@ -72,14 +74,21 @@ def generate_table() -> Table:
 def main():
     global detector
     global __predictions
-    __predictions = [0.0] * len(WORDS)
-    detector = CommandDetector(WORDS, FLAGS.tflite_path)
-    data_poller = Thread(target=update_predictions)
+    __predictions = [0.0] * len(MODEL['words'])
+    detector = CommandDetector(FLAGS.tflite_path)
+    data_poller = Thread(target=update_predictions, daemon=True)
     data_poller.start()
-
-    with Live(generate_table(), refresh_per_second=FLAGS.cli_refresh_per_s) as live:
-        while(True):
-            live.update(generate_table())
+    log.info("Start CPLI monitor")
+    try:
+        with Live(generate_table(), refresh_per_second=FLAGS.cli_refresh_per_s) as live:
+            while(True):
+                live.update(generate_table())
+    except KeyboardInterrupt:
+        log.info("Application shutdown")
+        sys.exit()
+    except Exception as e:
+        log.exception(e)
+    
 
 
 
@@ -92,19 +101,10 @@ if __name__ == '__main__':
         help='Path to TFLite file to use for testing. Must be compiled for TPU.'
         )
     parser.add_argument(
-        '--wanted_words',
-        type=str,
-        default='yes,no,up,down,left,right,on,off,stop,go',
-        help='Words to use (others will be added to an unknown label)'
-        )
-
-    parser.add_argument(
         '--cli_refresh_per_s',
         type=int,
         default=20,
         help='Sets the amount of refreshes per second for the cli interface.'
         )
     FLAGS, _ = parser.parse_known_args()
-    global WORDS
-    WORDS = ["_silence_","_unknown_"] + FLAGS.wanted_words.split(",")
     main()

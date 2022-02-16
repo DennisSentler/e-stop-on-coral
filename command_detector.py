@@ -1,25 +1,23 @@
-import logging
-logging.basicConfig(level=logging.INFO, format='LOG:%(asctime)s:%(levelname)s:%(name)s == %(message)s', datefmt='%d-%b-%y %H:%M:%S')
-logging = logging.getLogger(__name__)
-
 import argparse
 import numpy as np
 import python_speech_features as speech_features
 import audio_provider as audio_lib
-from measure import clockwatch
+from measure import clock
+from config import MODEL
+from logger import log
 
 TPU_ON = False
-INFERENCE = "Inference"
-PRE_PROC = "Pre Processing"
+CLOCK_INFERENCE = "Inference"
+CLOCK_PRE_PROC = "Pre Processing"
 CLOCK_TOTAL = "Total"
 
 try:
     import tflite_runtime.interpreter as tflite_tpu
-    logging.info("Imported TPU tf lite interpreter succesfully")
+    log.info("Imported TPU tf liteinterpreter succesfully")
     TPU_ON = True
 except (ModuleNotFoundError, ImportError):
     from tensorflow import lite as tflite_cpu
-    logging.info("Imported CPU tf lite interpreter succesfully")
+    log.info("Imported CPU tf lite interpreter succesfully")
 
 import sys
 import matplotlib.pyplot as plt
@@ -27,40 +25,30 @@ import matplotlib.pyplot as plt
 class CommandDetector():
     def __init__(
             self,
-            command_list,
             tflite_path: str, 
-            audio_sample_rate: int = 16000, 
-            audio_window_ms: int = 1000,
-            audio_reading_stride: int = 1000,
         ):
-        clockwatch.addClock(INFERENCE)
-        clockwatch.addClock(PRE_PROC)
-        clockwatch.addClock(CLOCK_TOTAL)
-        self.commands = command_list
-        self.audio_provider = audio_lib.AudioProvider(
-            sample_rate=audio_sample_rate, 
-            audio_window_ms=audio_window_ms, 
-            reading_stride=audio_reading_stride
-        )
+        clock.addClock(CLOCK_INFERENCE)
+        clock.addClock(CLOCK_PRE_PROC)
+        clock.addClock(CLOCK_TOTAL)
+        self.audio_provider = audio_lib.AudioProvider()
         self.interpreter = load_interpreter(tflite_path)
         self.audio_provider.start()
 
-
     def inference(self):
-        clockwatch.start(CLOCK_TOTAL)
+        clock.start(CLOCK_TOTAL)
         audio = self.audio_provider.read_audio_window()
-        clockwatch.start(PRE_PROC)
+        clock.start(CLOCK_PRE_PROC)
         mfcc = self.preProcessAudio(audio)
-        clockwatch.stop(PRE_PROC)
-        clockwatch.start(INFERENCE)
+        clock.stop(CLOCK_PRE_PROC)
+        clock.start(CLOCK_INFERENCE)
         predictions = self.tflite_inference(mfcc)
-        clockwatch.stop(INFERENCE)
-        clockwatch.stop(CLOCK_TOTAL)
+        clock.stop(CLOCK_INFERENCE)
+        clock.stop(CLOCK_TOTAL)
         return predictions
 
     def preProcessAudio(self, audio):
         audio_scaled = np.interp(audio, (np.iinfo(np.int16).min, np.iinfo(np.int16).max), (-1, +1))
-        audio_mfcc = calculate_mfcc(audio_scaled, 16000, 640, 320, 10)
+        audio_mfcc = audio_lib.calculate_mfcc(audio_scaled)
         audio_mfcc = np.reshape(audio_mfcc, (1,49,10))
         return audio_mfcc
 
@@ -119,36 +107,6 @@ def load_interpreter(tflite_path):
     interpreter.allocate_tensors()
     return interpreter
 
-def calculate_mfcc(audio_signal, audio_sample_rate, window_size, window_stride, num_mfcc):
-    """Returns Mel Frequency Cepstral Coefficients (MFCC) for a given audio signal.
-
-    Args:
-        audio_signal: Raw audio signal in range [-1, 1]
-        audio_sample_rate: Audio signal sample rate
-        window_size: Window size in samples for calculating spectrogram
-        window_stride: Window stride in samples for calculating spectrogram
-        num_mfcc: The number of MFCC features wanted.
-
-    Returns:
-        Calculated mffc features.
-    """
-
-    window_size_in_seconds = window_size/audio_sample_rate
-    window_stride_in_seconds = window_stride/audio_sample_rate
-    mfcc_features = speech_features.mfcc(
-        audio_signal,
-        samplerate=audio_sample_rate,
-        winlen=window_size_in_seconds,
-        winstep=window_stride_in_seconds,
-        numcep=num_mfcc,
-        nfilt=40,
-        lowfreq=20,
-        highfreq=4000,
-        nfft=window_size)
-    mfcc_features = mfcc_features.astype(np.float32)
-
-    return mfcc_features
-
 def saveDataPlot(audio, mfcc, name):
     fig, (audio_axis, mfcc_axis) = plt.subplots(1,2, gridspec_kw={'width_ratios': [3, 1]})
     fig.suptitle(name)
@@ -166,72 +124,27 @@ def saveDataPlot(audio, mfcc, name):
     plt.savefig("plot.jpg")
     plt.cla()
 
-def main():
-    audio_reading_stride = int(FLAGS.sample_rate / FLAGS.audio_access_per_second)
-    
-    command_detector = CommandDetector(
-        WORDS, 
-        FLAGS.tflite_path,
-        FLAGS.sample_rate, 
-        FLAGS.clip_duration_ms,
-        audio_reading_stride, 
-    )
-    logging.info("Inference starting ...")
+def main():    
+    command_detector = CommandDetector(FLAGS.tflite_path)
+    log.info("Inference starting ...")
     try:
         while True:
             predictions = command_detector.inference()
             highes_pred = np.argmax(predictions)
             if predictions[highes_pred] > 0.7:
-                print('Prediction: %s, with %dp' % (WORDS[highes_pred], predictions[highes_pred]*100))
+                print('Prediction: %s, with %dp' % (MODEL['words'][highes_pred], predictions[highes_pred]*100))
     except (KeyboardInterrupt, SystemExit):
-        logging.info("Application shutdown")
+        log.info("Application shutdown")
         sys.exit()
     
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--sample_rate',
-        type=int,
-        default=16000,
-        help='Expected sample rate of the wavs',)
-    parser.add_argument(
-        '--clip_duration_ms',
-        type=int,
-        default=1000,
-        help='Expected duration in milliseconds of the audio',)
-    parser.add_argument(
-        '--audio_access_per_second',
-        type=int,
-        default=10,
-        help='Number of audio accesses per second',)
-    parser.add_argument(
-        '--mfcc_window_size_ms',
-        type=float,
-        default=40.0,
-        help='How long each spectrogram timeslice is',)
-    parser.add_argument(
-        '--mfcc_window_stride_ms',
-        type=float,
-        default=20.0,
-        help='How long each spectrogram timeslice is',)
-    parser.add_argument(
-        '--mfcc_coefficient_count',
-        type=int,
-        default=10,
-        help='How many bins to use for the MFCC fingerprint',)
-    parser.add_argument(
         '--tflite_path',
         type=str,
         default='models/compiled_for_edge_tpu/ds_cnn_q_2d_edgetpu.tflite',
         help='Path to TFLite file to use for testing. Must be compiled for TPU.'
         )
-    parser.add_argument(
-        '--wanted_words',
-        type=str,
-        default='yes,no,up,down,left,right,on,off,stop,go',
-        help='Words to use (others will be added to an unknown label)',)
-
     FLAGS, _ = parser.parse_known_args()
-    WORDS = ["__silence__", "__unknown__"] + FLAGS.wanted_words.split(',')
     main()
