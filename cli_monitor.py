@@ -1,5 +1,6 @@
 import argparse
 import sys
+from xmlrpc.client import Boolean
 from rich import print
 from rich.live import Live
 from rich.table import Table
@@ -8,6 +9,8 @@ from threading import Thread, Lock
 from measure import clock
 from config import MODEL
 from logger import log
+import uniplot
+import numpy as np
 
 CLOCKS = [CLOCK_PRE_PROC, CLOCK_INFERENCE, CLOCK_TOTAL]
 
@@ -69,6 +72,16 @@ def generate_table() -> Table:
         )
     sub_table.add_row(infrence_table, clocks_table)
     main_table.add_row(sub_table)
+
+    if FLAGS.audio_plot:
+        plot_table=Table.grid(expand=True)
+        plot_table.add_column()
+        audio_data=detector.audio_provider.read_audio_window()
+        audio_scaled = np.interp(audio_data[::50], (np.iinfo(np.int16).min, np.iinfo(np.int16).max), (-10, +10))
+        audio_s=uniplot.plot_to_string(audio_scaled, y_min=-10, y_max=10, height=7, width=80, lines=True, title="audio")
+        audio_s = '\r\n'.join(audio_s)
+        plot_table.add_row(audio_s)
+        main_table.add_row(plot_table)
     return main_table
 
 def main():
@@ -76,8 +89,8 @@ def main():
     global __predictions
     __predictions = [0.0] * len(MODEL['words'])
     detector = CommandDetector(FLAGS.tflite_path)
-    data_poller = Thread(target=update_predictions, daemon=True)
-    data_poller.start()
+    predictions_poller = Thread(target=update_predictions, daemon=True)
+    predictions_poller.start()
     log.info("Start CPLI monitor")
     try:
         with Live(generate_table(), refresh_per_second=FLAGS.cli_refresh_per_s) as live:
@@ -106,5 +119,11 @@ if __name__ == '__main__':
         default=20,
         help='Sets the amount of refreshes per second for the cli interface.'
         )
+    parser.add_argument(
+        '--audio_plot',
+        action='store_true',
+        help='If the audio has to be plottet live in the cli monitor'
+        )
+
     FLAGS, _ = parser.parse_known_args()
     main()
