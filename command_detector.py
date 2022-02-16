@@ -13,7 +13,7 @@ CLOCK_TOTAL = "Total"
 
 try:
     import tflite_runtime.interpreter as tflite_tpu
-    log.info("Imported TPU tf liteinterpreter succesfully")
+    log.info("Imported TPU tf lite interpreter succesfully")
     TPU_ON = True
 except (ModuleNotFoundError, ImportError):
     from tensorflow import lite as tflite_cpu

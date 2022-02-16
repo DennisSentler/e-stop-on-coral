@@ -11,7 +11,6 @@ from config import MODEL
 from logger import log
 import uniplot
 import numpy as np
-
 CLOCKS = [CLOCK_PRE_PROC, CLOCK_INFERENCE, CLOCK_TOTAL]
 
 pred_lock = Lock()
@@ -28,6 +27,7 @@ def get_prediction():
         return __predictions
 
 def generate_table() -> Table:
+    
     """Make a new table."""
     main_table = Table()
     main_table.add_column("Live CLI Inference", justify="center")    
@@ -38,7 +38,6 @@ def generate_table() -> Table:
     sub_table = Table.grid()
     sub_table.add_column()
     infrence_table = Table(expand = True)
-    clocks_table = Table(expand = True)
 
     infrence_table.add_column("ID")
     infrence_table.add_column("Word")
@@ -53,23 +52,28 @@ def generate_table() -> Table:
             f"{value:3.2f} %" if value < 50 else f"[bold]{value:3.2f} %"
         )
 
-    clocks_table.add_column("Name")
-    clocks_table.add_column("OP/s", justify="right")
-    clocks_table.add_column("Std. diviation", justify="right")
-    clocks_table.add_column("Min. time", justify="right")
-    clocks_table.add_column("Max. time", justify="right")
+    if FLAGS.clock_table:
+        clocks_table = Table(expand = True)
+        clocks_table.add_column("Name")
+        clocks_table.add_column("OP/s", justify="right")
+        clocks_table.add_column("Std. diviation", justify="right")
+        clocks_table.add_column("Min. time", justify="right")
+        clocks_table.add_column("Max. time", justify="right")
 
-    for c_name in CLOCKS:
-        ops = clock.calculate_avg_OPS(c_name)
-        std_div = clock.get_std_deviation(c_name)
-        min, max = clock.get_min_max_values(c_name)
-        clocks_table.add_row(
-            f"{c_name.lower()}", 
-            "-" if ops is None else     f"{ops:.2f}",
-            "-" if std_div is None else f"{std_div:.2f}",
-            "-" if min is None else     f"{min} ms",
-            "-" if max is None else     f"{max} ms"
-        )
+        for c_name in CLOCKS:
+            ops = clock.calculate_avg_OPS(c_name)
+            std_div = clock.get_std_deviation(c_name)
+            min, max = clock.get_min_max_values(c_name)
+            clocks_table.add_row(
+                f"{c_name.lower()}", 
+                "-" if ops is None else     f"{ops:.2f}",
+                "-" if std_div is None else f"{std_div:.2f}",
+                "-" if min is None else     f"{min} ms",
+                "-" if max is None else     f"{max} ms"
+            )
+    else:
+        clocks_table=Table.grid()
+
     sub_table.add_row(infrence_table, clocks_table)
     main_table.add_row(sub_table)
 
@@ -82,6 +86,8 @@ def generate_table() -> Table:
         audio_s = '\r\n'.join(audio_s)
         plot_table.add_row(audio_s)
         main_table.add_row(plot_table)
+    
+
     return main_table
 
 def main():
@@ -91,7 +97,7 @@ def main():
     detector = CommandDetector(FLAGS.tflite_path)
     predictions_poller = Thread(target=update_predictions, daemon=True)
     predictions_poller.start()
-    log.info("Start CPLI monitor")
+    log.info("Start CLI monitor")
     try:
         with Live(generate_table(), refresh_per_second=FLAGS.cli_refresh_per_s) as live:
             while(True):
@@ -123,6 +129,11 @@ if __name__ == '__main__':
         '--audio_plot',
         action='store_true',
         help='If the audio has to be plottet live in the cli monitor'
+        )
+    parser.add_argument(
+        '--clock_table',
+        action='store_true',
+        help='If the clock table has to be plottet live in the cli monitor'
         )
 
     FLAGS, _ = parser.parse_known_args()

@@ -21,7 +21,8 @@
             "program": "cli_monitor.py",
             "console": "integratedTerminal",
             "args": ["--tflite_path", "models/compiled_for_edge_tpu/ds_cnn_quantized_v3_edgetpu.tflite",
-                     "--cli_refresh_per_s", "5"]
+                     "--cli_refresh_per_s", "10",
+                     "--clock_table"]
         }
     ]
 }
